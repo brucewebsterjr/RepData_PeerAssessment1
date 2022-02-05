@@ -1,0 +1,112 @@
+---
+title: "reproducible_project1"
+author: "Bruce Webster"
+date: "2/4/2022"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+## What is in this report:
+1) Code for reading in the activity dataset and processing the data
+2) Histogram of the total number of steps taken each day
+3) Mean and median number of steps taken each day
+4) Time series plot of the average number of steps taken
+5) The 5-minute interval that, on average, contains the maximum number of steps
+6) Code to describe and show a strategy for imputing missing data
+7) Histogram of the total number of steps taken each day after missing values are imputed
+8) Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+As well as all of the R code needed to reproduce the results (numbers, plots, etc.) in the report.
+
+## 1) Code for reading in the activity dataset and processing the data 
+
+This code sets the working directory, reads in the activity dataset using read.csv, loads necessary
+libraries, and transforms the date variable.
+
+```{r read in data}
+setwd("H:/Rstudiotest/reproducible")
+library(lubridate)
+library(ggplot2)
+activity <- read.csv("activity.csv")
+activity$date <- ymd(activity$date)
+```
+
+## 2) Histogram of the total number of steps taken each day
+
+This code creates a dataset of total steps taken each day and creates a histogram from that dataset.
+
+```{r total number of steps}
+stepsperday <- aggregate(activity$steps ~ activity$date, FUN = sum)
+colnames(stepsperday) <- c("Date", "Steps")
+hist(stepsperday$Steps, xlab = "Steps", main = "Total Steps per Day")
+```
+
+## 3) Mean and median number of steps taken each day
+
+This code uses the total steps taken each day dataset and calculates the mean and median steps taken
+each day.
+
+```{r mean and median steps}
+mean(stepsperday$Steps)
+median(stepsperday$Steps)
+```
+
+## 4) Time series plot of the average number of steps taken
+
+This code makes a time series plot of 5-minute intervals and the average number of steps taken, averaged
+across all days.
+
+```{r time series plot}
+cleanactivity <- activity[!is.na(activity$steps),]
+stepsperinterval <- aggregate(steps ~ interval, data = cleanactivity, FUN = mean)
+timeplot <- ggplot(stepsperinterval, aes(interval, steps))
+timeplot + geom_line(col = "black") + ggtitle("Average steps per time interval") + xlab("Interval") + ylab("Steps")
+```
+
+## 5) The 5-minute interval that, on average, contains the maximum number of steps
+
+This code uses which.max to find out the maximum steps on average across all days.
+
+```{r maximum number of steps}
+stepsperinterval[which.max(stepsperinterval$steps),]
+```
+
+## 6) Code to describe and show a strategy for imputing missing data
+
+This code shows the amount of missing data, and uses the mean number of steps of the five minute interval
+to impute the missing data.
+
+```{r imputing missing data}
+sum(is.na(activity$steps))
+miss <- is.na(activity$steps)
+meaninterval <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE, simplify = TRUE)
+activityfull <- activity
+activityfull$steps[miss] <- meaninterval[activity$interval[miss]]
+```
+
+## 7) Histogram of the total number of steps taken each day after missing values are imputed
+
+This code uses the activity data with the imputed data to produce a new histogram, and recalculate
+the mean and median total number of steps.
+
+```{r full data histogram}
+stepsperdayfull <- aggregate(activityfull$steps ~ activityfull$date, FUN = sum)
+colnames(stepsperdayfull) <- c("Date", "Steps")
+hist(stepsperdayfull$Steps, xlab = "Steps", main = "Total Steps per Day - Full Data")
+mean(stepsperdayfull$Steps)
+median(stepsperdayfull$Steps)
+```
+
+## 8) Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+This code uses the date variable to create a factor variable of weekdays and weekends, then plots
+time series of average steps by five minute interval across the two factors.
+
+```{r panel plot}
+activityfull$weekday <- weekdays(activityfull$date)
+activityfull$typeofday <- ifelse(activityfull$weekday == "Saturday" | activityfull$weekday == "Sunday", "weekend", "weekday")
+stepsperinttypeofday <- aggregate(steps ~ interval + typeofday, data = activityfull, FUN = mean)
+timeplottypeofday <- ggplot(stepsperinttypeofday, aes(interval, steps, color = typeofday))
+timeplottypeofday + geom_line() + facet_wrap(~typeofday, ncol = 1, nrow = 2)
+```
